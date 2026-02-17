@@ -1,7 +1,9 @@
 [project]
 name = "minecraft-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Discord bot for managing self-hosted Minecraft server"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
+license = "GPL-3.0-only"
+authors = [{ name = "Skrriply" }]
 dependencies = []
