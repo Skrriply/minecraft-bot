@@ -6,7 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "GPL-3.0-only"
 authors = [{ name = "Skrriply" }]
-dependencies = []
+dependencies = [
+    "disnake>=2.11.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.0",
+]
 
 [dependency-groups]
 dev = [
