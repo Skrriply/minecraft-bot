@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import platform
 from typing import TYPE_CHECKING
 
@@ -8,12 +10,18 @@ if TYPE_CHECKING:
     from discord.client import DiscordBot
 
 
-class General(commands.Cog):
+class GeneralCog(commands.Cog):
     def __init__(self, bot: DiscordBot) -> None:
+        """
+        Initializes the class.
+
+        Args:
+            bot: A Discord bot.
+        """
         self.bot: DiscordBot = bot
 
     @commands.is_owner()
-    @commands.slash_command(name="info", description="🏓 Pings the bot.")
+    @commands.slash_command(name="info", description="🏓 Надіслати пінг боту.")
     async def info(self, interaction: disnake.ApplicationCommandInteraction) -> None:
         """
         Sends an embedded message with technical information.
@@ -29,7 +37,6 @@ class General(commands.Cog):
         os_name = platform.system()
         os_version = platform.version()
 
-        # Creates a Discord embed
         embed = disnake.Embed(title="ℹ️ Інформація про бота")
         embed.add_field(name="🐍 Версія Python", value=python_version)
         embed.add_field(name="📦 Версія disnake", value=discord_version)
@@ -46,4 +53,4 @@ def setup(bot: DiscordBot) -> None:
     Args:
         bot: A Discord bot.
     """
-    bot.add_cog(General(bot))
+    bot.add_cog(GeneralCog(bot))

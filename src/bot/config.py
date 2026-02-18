@@ -4,14 +4,34 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Discord
     DISCORD_TOKEN: str
     DISCORD_OWNER_ID: int
+    DISCORD_CHANNEL_ID: int
+
+    # Pterodactyl
+    PTERODACTYL_URL: str
+    PTERODACTYL_API_KEY: str
+    PTERODACTYL_SERVER_ID: str
+
+    # Svitlo.live API
+    OUTAGE_API_URL: str
+    REGION_CPU: str = "kyivska-oblast"
+    GROUP_ID: str = "6.2"
+
+    # Other settings
+    SHUTDOWN_OFFSET_MINUTES: int = 10
+    WARN_OFFSET_MINUTES: int = 5
+    STARTUP_TIMEOUT_SECONDS: int = 300
+    STOP_TIMEOUT_SECONDS: int = 300
+    TIMEZONE: str = "Europe/Kyiv"
 
     WORK_DIR: Path = Path(__file__).parent
     COGS_DIR: Path = WORK_DIR / "cogs"
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()  # pyright: ignore

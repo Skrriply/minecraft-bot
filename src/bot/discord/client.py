@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING
 
@@ -7,13 +9,22 @@ from disnake.ext import commands
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from services.outage import OutageService
+    from services.pterodactyl import PterodactylService
+
 logger = logging.getLogger("DiscordBot")
 
 
 class DiscordBot(commands.InteractionBot):
     """A Discord bot for managing self-hosted Minecraft server."""
 
-    def __init__(self, cogs_dir: Path, owner_id: int | None = None) -> None:
+    def __init__(
+        self,
+        cogs_dir: Path,
+        pterodactyl_service: PterodactylService,
+        outage_service: OutageService,
+        owner_id: int | None = None,
+    ) -> None:
         """
         Initializes the class.
 
@@ -21,12 +32,15 @@ class DiscordBot(commands.InteractionBot):
             cogs_dir: The path to the directory from which cogs will be loaded.
             owner_id: Bot owner ID.
         """
-        super().__init__(owner_id=owner_id, intents=disnake.Intents.default())
+        super().__init__(
+            owner_id=owner_id, intents=disnake.Intents.default(), max_messages=None
+        )
         self.cogs_dir: Path = cogs_dir
+        self.ptero: PterodactylService = pterodactyl_service
+        self.outage: OutageService = outage_service
 
     async def on_ready(self) -> None:
         """Called when the bot is ready."""
-        self.load_cogs()
         logger.info(f'Bot "{self.user.name or "Unknown"}" is now online and ready!')
 
     def load_cogs(self) -> None:
