@@ -92,7 +92,7 @@ class PterodactylCog(commands.Cog):
             )
             return
 
-        await interaction.response.send_message(
+        await interaction.edit_original_response(
             "🚀 Запускаю сервер... Це може зайняти кілька хвилин."
         )
         await self.bot.ptero.set_power_state("start")
