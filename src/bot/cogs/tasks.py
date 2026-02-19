@@ -98,8 +98,11 @@ class TasksCog(commands.Cog):
 
         # Sends a warning to players
         if await self.bot.outage.check_outage_at(warn_time):
+            if self._warn_sent_for_slot == current_slot:
+                return
+
             state = await self.bot.ptero.get_server_state()
-            if state == "running" and self._warn_sent_for_slot != current_slot:
+            if state == "running":
                 message = f"Увага! Відключення світла. Сервер вимкнеться через {settings.WARN_OFFSET_MINUTES} хв."
                 await self.bot.ptero.send_command(f"say {message}")
                 await self.bot.ptero.send_command(
@@ -114,14 +117,21 @@ class TasksCog(commands.Cog):
 
         # Stops the server
         if await self.bot.outage.check_outage_at(shutdown_time):
+            if self._shutdown_sent_for_slot == current_slot:
+                return
+
             state = await self.bot.ptero.get_server_state()
-            if state == "running" and self._shutdown_sent_for_slot != current_slot:
+            if state in ("running", "starting"):
                 logger.info("Schedule shutdown initiated.")
                 await self.bot.ptero.send_command(
                     "kick @a Сервер вимикається за графіком відключень!"
                 )
                 await asyncio.sleep(5)
                 await self.bot.ptero.set_power_state("stop")
+                await self.bot.ptero.wait_until_state(
+                    "offline", settings.STOP_TIMEOUT_SECONDS
+                )
+
                 await channel.send(  # pyright: ignore
                     embed=disnake.Embed(
                         title="🛑 Вимкнення сервера",
@@ -129,7 +139,20 @@ class TasksCog(commands.Cog):
                         color=disnake.Color.red(),
                     )
                 )
-                self._shutdown_sent_for_slot = current_slot
+
+            is_success = await self.bot.proxmox.shutdown_host()
+
+            if is_success:
+                logger.info("Proxmox shutdown signal sent.")
+            else:
+                logger.error("Proxmox shutdown error.")
+
+                if self.bot.owner:
+                    await self.bot.owner.send(
+                        "⚠️ Помилка при спробі вимкнути Proxmox! Перевірте логи."
+                    )
+
+            self._shutdown_sent_for_slot = current_slot
 
     @status_updater.before_loop
     @monitor_outage.before_loop

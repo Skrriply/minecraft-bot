@@ -14,10 +14,17 @@ class Settings(BaseSettings):
     PTERODACTYL_API_KEY: str
     PTERODACTYL_SERVER_ID: str
 
+    # Proxmox
+    PROXMOX_URL: str
+    PROXMOX_NODE: str
+    PROXMOX_USER: str
+    PROXMOX_TOKEN_ID: str
+    PROXMOX_TOKEN_SECRET: str
+
     # Svitlo.live API
     OUTAGE_API_URL: str
-    REGION_CPU: str = "kyivska-oblast"
-    GROUP_ID: str = "6.2"
+    REGION_CPU: str = "kyiv"
+    GROUP_ID: str = "1.1"
 
     # Other settings
     SHUTDOWN_OFFSET_MINUTES: int = 10

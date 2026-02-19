@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from services.outage import OutageService
+    from services.proxmox import ProxmoxService
     from services.pterodactyl import PterodactylService
 
 logger = logging.getLogger("DiscordBot")
@@ -22,6 +23,7 @@ class DiscordBot(commands.InteractionBot):
         self,
         cogs_dir: Path,
         pterodactyl_service: PterodactylService,
+        proxmox_service: ProxmoxService,
         outage_service: OutageService,
         owner_id: int | None = None,
     ) -> None:
@@ -37,6 +39,7 @@ class DiscordBot(commands.InteractionBot):
         )
         self.cogs_dir: Path = cogs_dir
         self.ptero: PterodactylService = pterodactyl_service
+        self.proxmox: ProxmoxService = proxmox_service
         self.outage: OutageService = outage_service
 
     async def on_ready(self) -> None:
