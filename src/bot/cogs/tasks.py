@@ -40,13 +40,11 @@ class TasksCog(commands.Cog):
     async def on_ready(self) -> None:
         """Called when the bot is ready."""
         await asyncio.sleep(5)
-        await self.auto_start_server()
+        await self.notify_about_start()
 
-    async def auto_start_server(self) -> None:
+    async def notify_about_start(self) -> None:
         """Turns on the server and notifies about it."""
         channel = self.bot.get_channel(settings.DISCORD_CHANNEL_ID)
-        tz = ZoneInfo(settings.TIMEZONE)
-        now = datetime.now(tz)
 
         if not channel or not hasattr(channel, "send"):
             logger.error(
@@ -57,34 +55,10 @@ class TasksCog(commands.Cog):
         await channel.send(  # pyright: ignore
             embed=disnake.Embed(
                 title="⚡ Живлення відновлено",
-                description="Система завантажена. Бот онлайн.",
+                description="Сервер завантажено. Бот онлайн.",
                 color=disnake.Color.blue(),
             )
         )
-
-        # Checks the availability of electricity
-        if await self.bot.outage.check_outage_at(
-            now
-        ) or await self.bot.outage.check_outage_at(now + timedelta(minutes=15)):
-            await channel.send(  # pyright: ignore
-                "🛑 **Автозапуск сервера скасовано:** Незабаром планове відключення."
-            )
-            return
-
-        state = await self.bot.ptero.get_server_state()
-        if state not in ("running", "starting"):
-            await channel.send("🚀 Запускаю Minecraft сервер...")  # pyright: ignore
-            await self.bot.ptero.set_power_state("start")
-
-            if await self.bot.ptero.wait_until_state(
-                "running", settings.STARTUP_TIMEOUT_SECONDS
-            ):
-                await channel.send(  # pyright: ignore
-                    embed=disnake.Embed(
-                        description="✅ **Сервер успішно запущено!**",
-                        color=disnake.Color.green(),
-                    )
-                )
 
     @tasks.loop(seconds=30)
     async def status_updater(self) -> None:
@@ -127,7 +101,7 @@ class TasksCog(commands.Cog):
         if await self.bot.outage.check_outage_at(warn_time):
             state = await self.bot.ptero.get_server_state()
             if state == "running" and self._warn_sent_for_slot != current_slot:
-                message = f"⚠️ Увага! Відключення світла. Сервер OFF через {settings.WARN_OFFSET_MINUTES} хв."
+                message = f"Увага! Відключення світла. Сервер вимкнеться через {settings.WARN_OFFSET_MINUTES} хв."
                 await self.bot.ptero.send_command(f"say {message}")
                 await self.bot.ptero.send_command(
                     f'title @a actionbar {{"text":"{message}","color":"red"}}'
@@ -149,14 +123,13 @@ class TasksCog(commands.Cog):
                 )
                 await asyncio.sleep(5)
                 await self.bot.ptero.set_power_state("stop")
-                if channel:
-                    await channel.send(  # pyright: ignore
-                        embed=disnake.Embed(
-                            title="🛑 Server Shutdown",
-                            description="Відключення за графіком. Бот також скоро вимкнеться.",
-                            color=disnake.Color.red(),
-                        )
+                await channel.send(  # pyright: ignore
+                    embed=disnake.Embed(
+                        title="🛑 Вимкнення сервера",
+                        description="Відключення за графіком. Бот також скоро вимкнеться.",
+                        color=disnake.Color.red(),
                     )
+                )
                 self._shutdown_sent_for_slot = current_slot
 
     @status_updater.before_loop
