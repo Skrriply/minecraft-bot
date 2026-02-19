@@ -19,6 +19,8 @@ class OutageService:
             session: HTTP session for creating requests.
         """
         self.session: aiohttp.ClientSession = session
+        self._cache: OutageResponse | None = None
+        self._cache_expires_at: datetime = datetime.min
 
     async def _get_data(self) -> OutageResponse | None:
         """Gets data from API or returns cached version."""
@@ -32,7 +34,7 @@ class OutageService:
 
                 self._cache = OutageResponse(**raw_data)
                 self._cache_expires_at = datetime.now() + timedelta(
-                    minutes=self.CACHE_TTL_MINUTES
+                    minutes=settings.CACHE_TTL_MINUTES
                 )
                 return self._cache
         except aiohttp.ClientResponseError as e:
