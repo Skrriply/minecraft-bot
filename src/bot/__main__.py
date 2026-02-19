@@ -1,6 +1,6 @@
 import asyncio
 import logging
-import os
+import sys
 from logging.handlers import TimedRotatingFileHandler
 
 import aiohttp
@@ -10,22 +10,18 @@ from services.outage import OutageService
 from services.proxmox import ProxmoxService
 from services.pterodactyl import PterodactylService
 
-# Створюємо папку для логів, якщо її немає
-if not os.path.exists("logs"):
-    os.makedirs("logs")
-
 
 def setup_logging() -> None:
     if not settings.LOGS_DIR.exists():
         settings.LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    logger = logging.getLogger("Main")
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     file_handler = TimedRotatingFileHandler(
-        filename="logs/outage_service.log",
+        filename=settings.LOGS_DIR / "bot.log",
         when="midnight",
         interval=1,
         backupCount=7,
@@ -33,7 +29,7 @@ def setup_logging() -> None:
     )
     file_handler.setFormatter(formatter)
     file_handler.suffix = "%Y-%m-%d"
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
