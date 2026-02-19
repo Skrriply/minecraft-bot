@@ -74,7 +74,6 @@ class TasksCog(commands.Cog):
             activity=disnake.Activity(
                 name=f"{icon} Status: {state.capitalize()}",
                 type=disnake.ActivityType.playing,
-                application_id="356875570916753438",
             )
         )
 
