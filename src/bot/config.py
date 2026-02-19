@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     GROUP_ID: str = "1.1"
 
     # Other settings
+    CACHE_TTL_MINUTES: int = 10
     SHUTDOWN_OFFSET_MINUTES: int = 10
     WARN_OFFSET_MINUTES: int = 5
     STARTUP_TIMEOUT_SECONDS: int = 300
