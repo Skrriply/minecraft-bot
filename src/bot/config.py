@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     WORK_DIR: Path = Path(__file__).parent
     COGS_DIR: Path = WORK_DIR / "cogs"
+    LOGS_DIR: Path = WORK_DIR / "logs"
 
     class Config:
         env_file = ".env"
