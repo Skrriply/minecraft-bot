@@ -120,6 +120,14 @@ class TasksCog(commands.Cog):
             if self._shutdown_sent_for_slot == current_slot:
                 return
 
+            await channel.send(  # pyright: ignore
+                embed=disnake.Embed(
+                    title="🛑 Вимкнення сервера",
+                    description="Відключення за графіком. Бот також скоро вимкнеться.",
+                    color=disnake.Color.red(),
+                )
+            )
+
             state = await self.bot.ptero.get_server_state()
             if state in ("running", "starting"):
                 logger.info("Schedule shutdown initiated.")
@@ -130,14 +138,6 @@ class TasksCog(commands.Cog):
                 await self.bot.ptero.set_power_state("stop")
                 await self.bot.ptero.wait_until_state(
                     "offline", settings.STOP_TIMEOUT_SECONDS
-                )
-
-                await channel.send(  # pyright: ignore
-                    embed=disnake.Embed(
-                        title="🛑 Вимкнення сервера",
-                        description="Відключення за графіком. Бот також скоро вимкнеться.",
-                        color=disnake.Color.red(),
-                    )
                 )
 
             is_success = await self.bot.proxmox.shutdown_host()
