@@ -24,6 +24,168 @@ class MinecraftCog(commands.Cog):
         """
         self.bot = bot
 
+    @commands.cooldown(1, 60.0, commands.BucketType.guild)
+    @commands.slash_command(name="start", description="🚀 Запустити Minecraft сервер")
+    async def start_server(self, inter: disnake.ApplicationCommandInteraction) -> None:
+        """Allows any user to safely send a start signal to the server."""
+        await inter.response.defer()
+
+        logger.info(
+            f"User '{inter.author}' (ID: {inter.author.id}) requested to start the server."
+        )
+
+        # Checks the current server state
+        state = await self.bot.ptero_service.get_current_state_str()
+        if state == "running":
+            logger.info("Failed to start the server. The server is already running!")
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Сервер уже працює.\nМожете під'єднуватися!",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+        elif state == "starting":
+            logger.info("Failed to start the server. The server is starting!")
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Сервер запускається.\nЗачейкайте кілька хвилин!",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+        elif state == "stopping":
+            logger.info("Failed to start the server. The server is stopping!")
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description=(
+                    "Сервер наразі вимикається.\n"
+                    "Зачейкайте, поки сервер вимкнеться та застосйте команду ще раз!"
+                ),
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+
+        embed = disnake.Embed(
+            title="🚀 Запускаю сервер...",
+            description="Будь ласка, зачекайте кілька хвилин, поки сервер завантажиться.",
+            color=disnake.Color.green(),
+        )
+        await inter.edit_original_response(embed=embed)
+
+        success = await self.bot.ptero_service.send_power_action("start")
+        if success:
+            embed = disnake.Embed(
+                title="✅ Сервер успішно запущено!",
+                description="Можете під'єднуватися та насолоджуватися грою!",
+                color=disnake.Color.green(),
+            )
+        else:
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Не вдалося запустити сервер.",
+                color=disnake.Color.red(),
+            )
+
+        await inter.edit_original_response(embed=embed)
+
+    @start_server.error  # pyright: ignore
+    async def start_server_error(
+        self, inter: disnake.ApplicationCommandInteraction, error: Exception
+    ) -> None:
+        if isinstance(error, commands.CommandOnCooldown):
+            await inter.send(
+                f"⏳ Спробуйте знову через {error.retry_after:.0f} секунд.",
+                ephemeral=True,
+            )
+
+    @commands.is_owner()
+    @commands.cooldown(1, 60.0, commands.BucketType.guild)
+    @commands.slash_command(name="stop", description="🛑 Зупинити Minecraft сервер")
+    async def stop_server(self, inter: disnake.ApplicationCommandInteraction) -> None:
+        await inter.response.defer()
+
+        logger.info(
+            f"User '{inter.author}' (ID: {inter.author.id}) requested to stop the server."
+        )
+
+        # Checks the current server state
+        state = await self.bot.ptero_service.get_current_state_str()
+        if state == "offline":
+            logger.info("Failed to stop the server. The server is already offline!")
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Сервер уже вимкнено.",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+        elif state == "stopping":
+            logger.info("Failed to stop the server. The server is stopping!")
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Сервер вимикається.\nЗачейкайте кілька хвилин!",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+
+        embed = disnake.Embed(
+            title="🛑 Вимикаю сервер...",
+            description="Будь ласка, зачекайте кілька хвилин, поки сервер вимкнеться.",
+            color=disnake.Color.green(),
+        )
+        await inter.edit_original_response(embed=embed)
+
+        await self.bot.ptero_service.send_console_command("save-all")
+        success = await self.bot.ptero_service.send_power_action("stop")
+        if success:
+            embed = disnake.Embed(
+                title="✅ Сервер успішно вимкнено!",
+                description="Сервер вимкнено та збережено.",
+                color=disnake.Color.green(),
+            )
+        else:
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Не вдалося вимкнути сервер.",
+                color=disnake.Color.red(),
+            )
+
+        await inter.edit_original_response(embed=embed)
+
+    @stop_server.error  # pyright: ignore
+    async def stop_server_error(
+        self, inter: disnake.ApplicationCommandInteraction, error: Exception
+    ) -> None:
+        if isinstance(error, commands.CommandOnCooldown):
+            await inter.send(
+                f"⏳ Спробуйте знову через {error.retry_after:.0f} секунд.",
+                ephemeral=True,
+            )
+
+    @commands.is_owner()
+    @commands.slash_command(name="cmd", description="🛠️ Надіслати команду в консоль")
+    async def remote_console(
+        self,
+        inter: disnake.ApplicationCommandInteraction,
+        command: str = commands.Param(
+            description='Команда без "/" (наприклад: say Hello)'
+        ),
+    ) -> None:
+        await inter.response.defer(ephemeral=False)
+
+        clean_command = command.lstrip("/")
+        logger.info(
+            f"User '{inter.author}' (ID: {inter.author.id}) executed console command: '{clean_command}'."
+        )
+
+        await self.bot.ptero_service.send_console_command(clean_command)
+        await inter.edit_original_response(
+            content=f"✅ Команду `/{clean_command}` успішно надіслано в консоль."
+        )
+
     @commands.slash_command(
         name="status",
         description="📊 Перевірити статус Minecraft сервера",
