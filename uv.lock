@@ -323,6 +323,7 @@ name = "minecraft-bot"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "disnake" },
     { name = "python-dotenv" },
 ]
@@ -336,6 +337,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.13.3" },
     { name = "disnake", specifier = ">=2.12.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
 ]
