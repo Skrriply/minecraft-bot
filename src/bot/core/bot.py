@@ -9,13 +9,21 @@ from disnake.ext import commands
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from services.proxmox import ProxmoxService
+    from services.pterodactyl import PterodactylService
+
 logger = logging.getLogger(__name__)
 
 
 class DiscordBot(commands.InteractionBot):
     """Bot class."""
 
-    def __init__(self, owner_id: int) -> None:
+    def __init__(
+        self,
+        owner_id: int,
+        proxmox_service: ProxmoxService,
+        ptero_service: PterodactylService,
+    ) -> None:
         """
         Initializes the class.
 
@@ -25,6 +33,8 @@ class DiscordBot(commands.InteractionBot):
         super().__init__(
             owner_id=owner_id, intents=disnake.Intents.default(), max_messages=None
         )
+        self.proxmox_service: ProxmoxService = proxmox_service
+        self.ptero_service: PterodactylService = ptero_service
 
     async def on_ready(self) -> None:
         """
@@ -46,7 +56,7 @@ class DiscordBot(commands.InteractionBot):
             return
 
         for filename in cogs_dir.iterdir():
-            if not filename.name.endswith(".py") and filename.name.startswith("_"):
+            if not filename.name.endswith(".py") or filename.name.startswith("_"):
                 continue
 
             try:

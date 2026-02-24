@@ -18,6 +18,18 @@ class Config:
         self.DISCORD_TOKEN: str = self._get_env("DISCORD_TOKEN")
         self.DISCORD_OWNER_ID: int = int(self._get_env("DISCORD_OWNER_ID"))
 
+        # Proxmox
+        self.PROXMOX_URL: str = self._get_env("PROXMOX_URL")
+        self.PROXMOX_NODE: str = self._get_env("PROXMOX_NODE")
+        self.PROXMOX_USER: str = self._get_env("PROXMOX_USER")
+        self.PROXMOX_TOKEN_ID: str = self._get_env("PROXMOX_TOKEN_ID")
+        self.PROXMOX_TOKEN_SECRET: str = self._get_env("PROXMOX_TOKEN_SECRET")
+
+        # Pterodactyl
+        self.PTERODACTYL_URL: str = self._get_env("PTERODACTYL_URL")
+        self.PTERODACTYL_API_KEY: str = self._get_env("PTERODACTYL_API_KEY")
+        self.PTERODACTYL_SERVER_ID: str = self._get_env("PTERODACTYL_SERVER_ID")
+
         # Dirs
         WORK_DIR: Path = Path(__file__).resolve().parent.parent
         self.COGS_DIR: Path = WORK_DIR / "cogs"
@@ -32,7 +44,7 @@ class Config:
             default (optional): The default value if the key is not found.
 
         Returns:
-            str: The value of the environment variable.
+            The value of the environment variable.
 
         Raises:
             ValueError: If the environment variable is missing and no default is provided.
