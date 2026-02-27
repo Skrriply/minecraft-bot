@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import logging
 from enum import Enum
 from http import HTTPMethod
-from time import monotonic
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from core.cache import CacheManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,51 +29,37 @@ class BaseAPIClient:
 
     def __init__(
         self,
+        cache_manager: CacheManager,
         base_url: str,
         headers: dict[str, str] | None = None,
         timeout: aiohttp.ClientTimeout | None = None,
-        cache_ttl: int = 15,
     ):
         """
         Initializes the class.
 
         Args:
+            cache_manager: An injected instance of the cache manager.
             base_url: The root URL for the API.
             headers (optional): Default HTTP headers (e.g., Authorization). Default to `None`.
             timeout (optional): Timeout for the HTTP request. Default to 30 seconds.
-            cache_ttl (optional): Time-To-Live for cached responses in seconds. Default to 15 seconds.
         """
+        self.cache: CacheManager = cache_manager
         self.base_url: str = base_url.rstrip("/")
         self.headers: dict[str, str] | None = headers
         self.timeout: aiohttp.ClientTimeout = timeout or aiohttp.ClientTimeout(total=30)
-        self.cache_ttl: int = cache_ttl
         self.session: aiohttp.ClientSession | None = None
-
-        # In-memory cache storage:
-        # { "url": {"data": response_json, "time": timestamp} }
-        self._cache: dict[str, dict[str, Any]] = {}
 
     async def create_session(self) -> None:
         """Creates and initializes the HTTP session."""
         if not self.session or self.session.closed:
-            self.session = aiohttp.ClientSession(headers=self.headers)
+            self.session = aiohttp.ClientSession(
+                headers=self.headers, timeout=self.timeout
+            )
 
     async def close_session(self) -> None:
         """Closes the active HTTP session."""
         if self.session and not self.session.closed:
             await self.session.close()
-
-    def _get_from_cache(self, url: str) -> Any | None:
-        """Retrieves data from the cache if the TTL has not expired."""
-        cached = self._cache.get(url)
-        if cached and (monotonic() - cached["time"] < self.cache_ttl):
-            return cached["data"]
-
-        return None
-
-    def _set_to_cache(self, url: str, data: Any) -> None:
-        """Stores data into the cache with the current timestamp."""
-        self._cache[url] = {"data": data, "time": monotonic()}
 
     async def _parse_response(
         self, response: aiohttp.ClientResponse, format: ResponseFormat
@@ -91,6 +81,7 @@ class BaseAPIClient:
         use_cache: bool = False,
         response_format: ResponseFormat = ResponseFormat.JSON,
         valid_statuses: list[int] | None = None,
+        cache_ttl: int | None = None,
         **kwargs: Any,
     ) -> Any | None:
         """
@@ -102,6 +93,7 @@ class BaseAPIClient:
             use_cache (optional): Whether to check and store the result in the cache (for GET requests only). Defaults to `False`.
             response_format (optional): The expected format of the response body. Defaults to `ResponseFormat.JSON`.
             valid_statuses (optional): A list of HTTP status codes considered successful. If `None`, relies on `response.ok`. Defaults to `None`.
+            cache_ttl (optional): Time-To-Live for cached response in seconds. Default to `CacheManager.default_ttl` seconds.
             **kwargs: Additional arguments passed to `aiohttp.ClientSession.request` (e.g., json, data, params).
 
         Returns:
@@ -116,7 +108,10 @@ class BaseAPIClient:
         url = f"{self.base_url}{endpoint}"
 
         if use_cache and method == HTTPMethod.GET:
-            return self._get_from_cache(url)
+            cached_data = self.cache.get(url)
+
+            if cached_data:
+                return cached_data
 
         logger.debug(f"Executing {method} request to '{url}'...")
         try:
@@ -133,7 +128,7 @@ class BaseAPIClient:
                 data = await self._parse_response(response, response_format)
 
                 if use_cache and method == HTTPMethod.GET:
-                    self._set_to_cache(url, data)
+                    self.cache.set(url, data, cache_ttl)
 
                 return data
         except Exception:

@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from http import HTTPMethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.config import settings
 from services.base import BaseAPIClient, ResponseFormat
+
+if TYPE_CHECKING:
+    from core.cache import CacheManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +22,19 @@ class PterodactylService(BaseAPIClient):
         https://pterodactyl-api-docs.netvpx.com/docs/api/client
     """
 
-    def __init__(self) -> None:
-        """Initializes the class."""
+    def __init__(self, cache_manager: CacheManager) -> None:
+        """
+        Initializes the class.
+
+        Args:
+            cache_manager: An injected instance of the cache manager.
+        """
         headers: dict[str, str] = {
             "Authorization": f"Bearer {settings.PTERODACTYL_API_KEY}",
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
-        super().__init__(
-            base_url=settings.PTERODACTYL_URL, headers=headers, cache_ttl=10
-        )
+        super().__init__(cache_manager, settings.PTERODACTYL_URL, headers=headers)
 
         self.server_id: str = settings.PTERODACTYL_SERVER_ID
 
@@ -39,7 +47,9 @@ class PterodactylService(BaseAPIClient):
         """
         logger.debug(f"Fetching status for Pterodactyl server ID: {self.server_id}.")
         endpoint = f"/api/client/servers/{self.server_id}/resources"
-        return await self._request(HTTPMethod.GET, endpoint)
+        return await self._request(
+            HTTPMethod.GET, endpoint, use_cache=True, cache_ttl=10
+        )
 
     async def send_console_command(self, command: str) -> None:
         """
