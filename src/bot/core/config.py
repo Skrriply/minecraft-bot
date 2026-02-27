@@ -1,60 +1,39 @@
-import os
 from pathlib import Path
 from typing import TypeVar
 
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 T = TypeVar("T")
 
-load_dotenv()
+
+class Settings(BaseSettings):
+    """Сlass for bot settings."""
+
+    # Discord
+    DISCORD_TOKEN: str
+    DISCORD_OWNER_ID: int
+
+    # Proxmox
+    PROXMOX_URL: str
+    PROXMOX_NODE: str
+    PROXMOX_USER: str
+    PROXMOX_TOKEN_ID: str
+    PROXMOX_TOKEN_SECRET: str
+
+    # Pterodactyl
+    PTERODACTYL_URL: str
+    PTERODACTYL_API_KEY: str
+    PTERODACTYL_SERVER_ID: str
+
+    # Dirs
+    WORK_DIR: Path = Path(__file__).resolve().parent.parent
+    COGS_DIR: Path = WORK_DIR / "cogs"
+    LOGS_DIR: Path = WORK_DIR / "logs"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
-class Config:
-    """Сlass for bot configuration."""
-
-    def __init__(self) -> None:
-        """Initializes the class."""
-        # Discord
-        self.DISCORD_TOKEN: str = self._get_env("DISCORD_TOKEN")
-        self.DISCORD_OWNER_ID: int = int(self._get_env("DISCORD_OWNER_ID"))
-
-        # Proxmox
-        self.PROXMOX_URL: str = self._get_env("PROXMOX_URL")
-        self.PROXMOX_NODE: str = self._get_env("PROXMOX_NODE")
-        self.PROXMOX_USER: str = self._get_env("PROXMOX_USER")
-        self.PROXMOX_TOKEN_ID: str = self._get_env("PROXMOX_TOKEN_ID")
-        self.PROXMOX_TOKEN_SECRET: str = self._get_env("PROXMOX_TOKEN_SECRET")
-
-        # Pterodactyl
-        self.PTERODACTYL_URL: str = self._get_env("PTERODACTYL_URL")
-        self.PTERODACTYL_API_KEY: str = self._get_env("PTERODACTYL_API_KEY")
-        self.PTERODACTYL_SERVER_ID: str = self._get_env("PTERODACTYL_SERVER_ID")
-
-        # Dirs
-        WORK_DIR: Path = Path(__file__).resolve().parent.parent
-        self.COGS_DIR: Path = WORK_DIR / "cogs"
-        self.LOGS_DIR: Path = WORK_DIR / "logs"
-
-    def _get_env(self, key: str, default: T | None = None) -> str | T:
-        """
-        Retrieves an environment variable by key.
-
-        Args:
-            key: The environment variable name.
-            default (optional): The default value if the key is not found.
-
-        Returns:
-            The value of the environment variable.
-
-        Raises:
-            ValueError: If the environment variable is missing and no default is provided.
-        """
-        value = os.getenv(key, default)
-
-        if value is None:
-            raise ValueError(f"Error: Environment variable '{key}' not found!")
-
-        return value
-
-
-settings = Config()
+settings = Settings()  # pyright: ignore
