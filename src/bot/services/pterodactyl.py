@@ -1,9 +1,10 @@
 import asyncio
 import logging
+from http import HTTPMethod
 from typing import Any
 
 from core.config import settings
-from services.base import BaseAPIClient
+from services.base import BaseAPIClient, ResponseFormat
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,8 @@ class PterodactylService(BaseAPIClient):
         https://pterodactyl-api-docs.netvpx.com/docs/api/client
     """
 
-    STATES_MAPPING: dict[str, list[str]] = {
-        "start": ["starting", "running"],
-    }
-
     def __init__(self) -> None:
         """Initializes the class."""
-        self.server_id: str = settings.PTERODACTYL_SERVER_ID
         headers: dict[str, str] = {
             "Authorization": f"Bearer {settings.PTERODACTYL_API_KEY}",
             "Accept": "application/json",
@@ -31,6 +27,8 @@ class PterodactylService(BaseAPIClient):
         super().__init__(
             base_url=settings.PTERODACTYL_URL, headers=headers, cache_ttl=10
         )
+
+        self.server_id: str = settings.PTERODACTYL_SERVER_ID
 
     async def get_server_state(self) -> dict[str, Any] | None:
         """
@@ -41,7 +39,7 @@ class PterodactylService(BaseAPIClient):
         """
         logger.debug(f"Fetching status for Pterodactyl server ID: {self.server_id}.")
         endpoint = f"/api/client/servers/{self.server_id}/resources"
-        return await self._request("GET", endpoint)
+        return await self._request(HTTPMethod.GET, endpoint)
 
     async def send_console_command(self, command: str) -> None:
         """
@@ -52,8 +50,12 @@ class PterodactylService(BaseAPIClient):
         """
         endpoint = f"/api/client/servers/{self.server_id}/command"
         payload = {"command": command}
-        return await self._request(
-            "POST", endpoint, json=payload, ignored_statuses=[204]
+        await self._request(
+            HTTPMethod.POST,
+            endpoint,
+            json=payload,
+            response_format=ResponseFormat.NONE,
+            valid_statuses=[204],
         )
 
     async def get_current_state_str(self) -> str:
@@ -108,7 +110,13 @@ class PterodactylService(BaseAPIClient):
         )
         endpoint = f"/api/client/servers/{self.server_id}/power"
         payload = {"signal": action}
-        await self._request("POST", endpoint, json=payload)
+        await self._request(
+            HTTPMethod.POST,
+            endpoint,
+            json=payload,
+            response_format=ResponseFormat.NONE,
+            valid_statuses=[204],
+        )
 
         return await self._wait_until_state(
             "running" if action in ["start", "restart"] else "offline"

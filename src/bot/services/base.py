@@ -1,10 +1,21 @@
 import logging
+from enum import Enum
+from http import HTTPMethod
 from time import monotonic
 from typing import Any
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
+
+
+class ResponseFormat(str, Enum):
+    """Strategies for parsing the HTTP response body."""
+
+    JSON = "json"
+    TEXT = "text"
+    BYTES = "bytes"
+    NONE = "none"
 
 
 class BaseAPIClient:
@@ -24,9 +35,9 @@ class BaseAPIClient:
 
         Args:
             base_url: The root URL for the API.
-            headers (optional): Default HTTP headers (e.g., Authorization). Default `None`.
-            timeout (optional): Timeout for the HTTP request. Default 30 seconds.
-            cache_ttl (optional): Time-To-Live for cached responses in seconds. Default 15 seconds.
+            headers (optional): Default HTTP headers (e.g., Authorization). Default to `None`.
+            timeout (optional): Timeout for the HTTP request. Default to 30 seconds.
+            cache_ttl (optional): Time-To-Live for cached responses in seconds. Default to 15 seconds.
         """
         self.base_url: str = base_url.rstrip("/")
         self.headers: dict[str, str] | None = headers
@@ -39,63 +50,92 @@ class BaseAPIClient:
         self._cache: dict[str, dict[str, Any]] = {}
 
     async def create_session(self) -> None:
-        """Creates the HTTP session."""
+        """Creates and initializes the HTTP session."""
         if not self.session or self.session.closed:
             self.session = aiohttp.ClientSession(headers=self.headers)
 
     async def close_session(self) -> None:
-        """Closes the HTTP session."""
+        """Closes the active HTTP session."""
         if self.session and not self.session.closed:
             await self.session.close()
 
+    def _get_from_cache(self, url: str) -> Any | None:
+        """Retrieves data from the cache if the TTL has not expired."""
+        cached = self._cache.get(url)
+        if cached and (monotonic() - cached["time"] < self.cache_ttl):
+            return cached["data"]
+
+        return None
+
+    def _set_to_cache(self, url: str, data: Any) -> None:
+        """Stores data into the cache with the current timestamp."""
+        self._cache[url] = {"data": data, "time": monotonic()}
+
+    async def _parse_response(
+        self, response: aiohttp.ClientResponse, format: ResponseFormat
+    ) -> Any | None:
+        """Parses the response body based on the requested format strategy."""
+        if format == ResponseFormat.JSON:
+            return await response.json()
+        elif format == ResponseFormat.TEXT:
+            return await response.text()
+        elif format == ResponseFormat.BYTES:
+            return await response.read()
+
+        return None
+
     async def _request(
         self,
-        method: str,
+        method: HTTPMethod,
         endpoint: str,
         use_cache: bool = False,
-        ignored_statuses: list[int] = [],
+        response_format: ResponseFormat = ResponseFormat.JSON,
+        valid_statuses: list[int] | None = None,
         **kwargs: Any,
     ) -> Any | None:
         """
-        Sends an HTTP request.
+        Executes an asynchronous HTTP request.
 
         Args:
-            method: HTTP method ("GET", "POST", etc.).
-            endpoint: API endpoint path.
-            use_cache (optional): Whether to check and store the result in cache.
-            ignored_statuses (optional): Request statuses that will be ignored.
-            **kwargs: Additional arguments for aiohttp (json, params, etc.).
+            method: The HTTP method to use (e.g., HTTPMethod.GET).
+            endpoint: The API endpoint path, appended to the base URL.
+            use_cache (optional): Whether to check and store the result in the cache (for GET requests only). Defaults to `False`.
+            response_format (optional): The expected format of the response body. Defaults to `ResponseFormat.JSON`.
+            valid_statuses (optional): A list of HTTP status codes considered successful. If `None`, relies on `response.ok`. Defaults to `None`.
+            **kwargs: Additional arguments passed to `aiohttp.ClientSession.request` (e.g., json, data, params).
 
         Returns:
-            Parsed JSON response as a dictionary, or `None` if request fails.
+            The parsed response data based on `response_format`, or `None` if the request fails.
+
+        Raises:
+            RuntimeError: If the HTTP session is not initialized before making a request.
         """
         if not self.session:
             raise RuntimeError("HTTP session is not initialized.")
 
         url = f"{self.base_url}{endpoint}"
 
-        # Checks cache (only for GET requests)
-        if use_cache and method.upper() == "GET":
-            cached_item = self._cache.get(url)
-            if cached_item and (monotonic() - cached_item["time"] < self.cache_ttl):
-                return cached_item["data"]
+        if use_cache and method == HTTPMethod.GET:
+            return self._get_from_cache(url)
 
-        # Sends request
         logger.debug(f"Executing {method} request to '{url}'...")
         try:
             async with self.session.request(method, url, **kwargs) as response:
-                if response.status not in ignored_statuses:
-                    response.raise_for_status()
+                is_valid_status = (
+                    response.status in valid_statuses if valid_statuses else response.ok
+                )
+                if not is_valid_status:
+                    logger.error(
+                        f"API Error [{response.status}] at '{url}': Expected a different status."
+                    )
+                    return None
 
-                data = await response.json() if response.text else None
+                data = await self._parse_response(response, response_format)
 
-                # Stores response in cache
-                if use_cache and method.upper() == "GET":
-                    self._cache[url] = {"data": data, "time": monotonic()}
+                if use_cache and method == HTTPMethod.GET:
+                    self._set_to_cache(url, data)
 
                 return data
-        except aiohttp.ClientResponseError as e:
-            logger.error(f"API Error [{e.status}] at '{url}': {e.message}")
         except Exception:
             logger.exception(f"Connection failed for '{url}'.")
 
