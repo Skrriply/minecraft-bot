@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import disnake
 from disnake.ext import commands
+from services.dtek import PowerStatus
 
 if TYPE_CHECKING:
     from core.bot import DiscordBot
@@ -77,6 +78,13 @@ MESSAGES = {
 
 class MinecraftCog(commands.Cog):
     """Cog for fetching information and status of the Minecraft server."""
+
+    DTEK_STATUS_MAPPING: dict[PowerStatus | None, str] = {
+        PowerStatus.YES: "🟢 Світло є",
+        PowerStatus.NO: "🔴 Світла немає",
+        PowerStatus.MAYBE: "🟡 Можливі відключення",
+        None: "⚪ Невідомо",
+    }
 
     def __init__(self, bot: DiscordBot) -> None:
         """
@@ -226,8 +234,9 @@ class MinecraftCog(commands.Cog):
         await inter.response.defer()
 
         server_data = await self.bot.ptero_service.get_server_state()
+        schedule_data = await self.bot.dtek_service.get_schedule()
 
-        if not server_data or not server_data.attributes.resources:
+        if not server_data or not server_data.attributes.resources or not schedule_data:
             embed = disnake.Embed(
                 title="❌ Помилка",
                 description="Не вдалося виконати дію.",
@@ -240,6 +249,7 @@ class MinecraftCog(commands.Cog):
         cpu_usage = server_data.attributes.resources.cpu_absolute
         ram_mb = server_data.attributes.resources.memory_bytes / (1024 * 1024)
         disk_mb = server_data.attributes.resources.disk_bytes / (1024 * 1024)
+        current_power = self.DTEK_STATUS_MAPPING.get(schedule_data.current_status)
 
         # Determines the color by the server status
         color = disnake.Color.red()
@@ -248,11 +258,28 @@ class MinecraftCog(commands.Cog):
         elif state == "starting":
             color = disnake.Color.yellow()
 
+        if schedule_data.next_outage_time and schedule_data.next_power_on_time:
+            schedule_text = f"📉 Вимкнення: **{schedule_data.next_outage_time}**\n💡 Увімкнення: **{schedule_data.next_power_on_time}**"
+        elif schedule_data.next_outage_time:
+            schedule_text = f"📉 Вимкнення: **{schedule_data.next_outage_time}**"
+        elif (
+            schedule_data.next_power_on_time
+            and schedule_data.current_status != PowerStatus.YES
+        ):
+            schedule_text = f"💡 Увімкнення: **{schedule_data.next_power_on_time}**"
+        else:
+            schedule_text = "✅ Відключень не планується (або немає даних)"
+
         embed = disnake.Embed(title="📊 Статус сервера", color=color)
         embed.add_field(name="⛏️ Статус", value=f"**{state.upper()}**", inline=False)
         embed.add_field(name="💻 ЦПУ", value=f"{cpu_usage:.2f}%", inline=True)
         embed.add_field(name="🧠 ОЗУ", value=f"{ram_mb:.2f} MB", inline=True)
         embed.add_field(name="💽 Диск", value=f"{disk_mb:.2f} MB", inline=True)
+        embed.add_field(
+            name="⚡ Живлення",
+            value=f"{current_power}\n{schedule_text}",
+            inline=True,
+        )
 
         await inter.edit_original_response(embed=embed)
 

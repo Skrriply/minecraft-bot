@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import TypeVar
+from zoneinfo import ZoneInfo
 
 from pydantic_settings import BaseSettings
 
@@ -24,6 +25,13 @@ class Settings(BaseSettings):
     PTERODACTYL_URL: str
     PTERODACTYL_API_KEY: str
     PTERODACTYL_SERVER_ID: str
+
+    # DTEK
+    TIMEZONE: ZoneInfo
+    DTEK_REGION: str = "kem"
+    DTEK_CITY: str
+    DTEK_STREET: str
+    DTEK_HOUSE: str
 
     # Dirs
     WORK_DIR: Path = Path(__file__).resolve().parent.parent

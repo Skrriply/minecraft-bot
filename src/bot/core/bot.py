@@ -9,6 +9,7 @@ from disnake.ext import commands
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from services.dtek import DTEKScraperService
     from services.proxmox import ProxmoxService
     from services.pterodactyl import PterodactylService
 
@@ -23,6 +24,7 @@ class DiscordBot(commands.InteractionBot):
         owner_id: int,
         proxmox_service: ProxmoxService,
         ptero_service: PterodactylService,
+        dtek_service: DTEKScraperService,
     ) -> None:
         """
         Initializes the class.
@@ -35,6 +37,7 @@ class DiscordBot(commands.InteractionBot):
         )
         self.proxmox_service: ProxmoxService = proxmox_service
         self.ptero_service: PterodactylService = ptero_service
+        self.dtek_service: DTEKScraperService = dtek_service
 
     async def on_ready(self) -> None:
         """
