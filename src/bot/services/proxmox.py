@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 from http import HTTPMethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Literal
 
 from core.config import settings
-from services.base import BaseAPIClient
+from services.base import BaseAPIClient, ResponseFormat
 
 if TYPE_CHECKING:
     from core.cache import CacheManager
@@ -38,27 +38,18 @@ class ProxmoxService(BaseAPIClient):
 
         self.node: str = settings.PROXMOX_NODE
 
-    async def send_node_power_action(self, command: str) -> None:
+    async def send_node_power_action(
+        self, command: Literal["shutdown", "reboot"]
+    ) -> None:
         """
         Sends a command to shutdown or reboot the Proxmox host node.
 
         Args:
-            command: Either "shutdown" or "reboot".
+            command: Power command to send.
         """
-        if command not in ["shutdown", "reboot"]:
-            logger.error(f"Invalid command: '{command}'.")
-            return
-
-        endpoint = f"/api2/json/nodes/{self.node}/status"
-        payload = {"command": command}
-        await self._request(HTTPMethod.POST, endpoint, json=payload)
-
-    async def get_node_status(self) -> dict[str, Any] | None:
-        """
-        Fetches CPU, RAM, and disk metrics for the Proxmox host node.
-
-        Returns:
-            API response as a dictionary, or `None` if request fails.
-        """
-        endpoint = f"/api2/json/nodes/{self.node}/status"
-        return await self._request(HTTPMethod.GET, endpoint, use_cache=True)
+        await self._request(
+            HTTPMethod.POST,
+            f"/api2/json/nodes/{self.node}/status",
+            json={"command": command},
+            response_format=ResponseFormat.NONE,
+        )
