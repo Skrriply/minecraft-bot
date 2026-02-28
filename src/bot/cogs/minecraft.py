@@ -97,7 +97,18 @@ class MinecraftCog(commands.Cog):
         )
 
         # Checks for invalid server states
-        state = await self.bot.ptero_service.get_current_state_str()
+        data = await self.bot.ptero_service.get_server_state()
+
+        if not data:
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Не вдалося виконати дію.",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+
+        state = data.attributes.current_state
         if state in INVALID_STATES[action]:
             error_title, error_desc = INVALID_STATES[action][state]
             logger.warning(f"Action '{action}' rejected. Server is in state '{state}'.")
@@ -175,7 +186,18 @@ class MinecraftCog(commands.Cog):
         await inter.response.defer(ephemeral=False)
 
         # Checks for invalid server states
-        state = await self.bot.ptero_service.get_current_state_str()
+        data = await self.bot.ptero_service.get_server_state()
+
+        if not data:
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Не вдалося виконати дію.",
+                color=disnake.Color.red(),
+            )
+            await inter.edit_original_response(embed=embed)
+            return
+
+        state = data.attributes.current_state
         if state != "running":
             embed = disnake.Embed(
                 title="❌ Помилка",
@@ -202,20 +224,21 @@ class MinecraftCog(commands.Cog):
         """Fetches and displays the current status of the Pterodactyl server."""
         await inter.response.defer()
 
-        status_data = await self.bot.ptero_service.get_server_state()
-        if not status_data:
-            await inter.edit_original_response(
-                content="❌ Не вдалося отримати статус сервера."
+        server_data = await self.bot.ptero_service.get_server_state()
+
+        if not server_data or not server_data.attributes.resources:
+            embed = disnake.Embed(
+                title="❌ Помилка",
+                description="Не вдалося виконати дію.",
+                color=disnake.Color.red(),
             )
+            await inter.edit_original_response(embed=embed)
             return
 
-        attrs = status_data.get("attributes", {})
-        state: str = attrs.get("current_state", "unknown")
-        resources: dict = attrs.get("resources", {})
-
-        cpu_usage = resources.get("cpu_absolute", 0.0)
-        ram_mb = resources.get("memory_bytes", 0) / (1024 * 1024)
-        disk_mb = resources.get("disk_bytes", 0) / (1024 * 1024)
+        state = server_data.attributes.current_state
+        cpu_usage = server_data.attributes.resources.cpu_absolute
+        ram_mb = server_data.attributes.resources.memory_bytes / (1024 * 1024)
+        disk_mb = server_data.attributes.resources.disk_bytes / (1024 * 1024)
 
         # Determines the color by the server status
         color = disnake.Color.red()
@@ -225,7 +248,7 @@ class MinecraftCog(commands.Cog):
             color = disnake.Color.yellow()
 
         embed = disnake.Embed(title="📊 Статус сервера", color=color)
-        embed.add_field(name="Статус", value=f"**{state.upper()}**", inline=False)
+        embed.add_field(name="⛏️ Статус", value=f"**{state.upper()}**", inline=False)
         embed.add_field(name="💻 ЦПУ", value=f"{cpu_usage:.2f}%", inline=True)
         embed.add_field(name="🧠 ОЗУ", value=f"{ram_mb:.2f} MB", inline=True)
         embed.add_field(name="💽 Диск", value=f"{disk_mb:.2f} MB", inline=True)

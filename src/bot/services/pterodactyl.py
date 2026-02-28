@@ -2,16 +2,53 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from enum import Enum
 from http import HTTPMethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Literal
 
 from core.config import settings
+from pydantic import BaseModel, ValidationError
 from services.base import BaseAPIClient, ResponseFormat
 
 if TYPE_CHECKING:
     from core.cache import CacheManager
 
 logger = logging.getLogger(__name__)
+
+
+class PowerSignal(str, Enum):
+    """Valid Pterodactyl power signals."""
+
+    START = "start"
+    STOP = "stop"
+    RESTART = "restart"
+    KILL = "kill"
+
+
+class ResourceUsage(BaseModel):
+    """Server resource usage metrics."""
+
+    memory_bytes: int = 0
+    cpu_absolute: float = 0.0
+    disk_bytes: int = 0
+    network_rx_bytes: int = 0
+    network_tx_bytes: int = 0
+    uptime: int = 0
+
+
+class ServerAttributes(BaseModel):
+    """Server state attributes."""
+
+    current_state: str = "unknown"
+    is_suspended: bool = False
+    resources: ResourceUsage | None = None
+
+
+class ServerResourceResponse(BaseModel):
+    """The Pterodactyl server resource API response."""
+
+    object: str = "stats"
+    attributes: ServerAttributes
 
 
 class PterodactylService(BaseAPIClient):
@@ -38,18 +75,30 @@ class PterodactylService(BaseAPIClient):
 
         self.server_id: str = settings.PTERODACTYL_SERVER_ID
 
-    async def get_server_state(self) -> dict[str, Any] | None:
+    async def get_server_state(self) -> ServerResourceResponse | None:
         """
         Fetches the current resource usage and state of the Minecraft server.
 
         Returns:
-            API response as a dictionary, or `None` if request fails.
+            API response as a `ServerResourceResponse`, or `None` if request fails.
         """
         logger.debug(f"Fetching status for Pterodactyl server ID: {self.server_id}.")
-        endpoint = f"/api/client/servers/{self.server_id}/resources"
-        return await self._request(
-            HTTPMethod.GET, endpoint, use_cache=True, cache_ttl=10
+        data = await self._request(
+            HTTPMethod.GET,
+            f"/api/client/servers/{self.server_id}/resources",
+            use_cache=True,
+            cache_ttl=10,
         )
+
+        if not data:
+            return None
+
+        try:
+            return ServerResourceResponse.model_validate(data)
+        except ValidationError:
+            logger.exception("Failed to parse Pterodactyl API response.")
+
+        return None
 
     async def send_console_command(self, command: str) -> None:
         """
@@ -58,28 +107,13 @@ class PterodactylService(BaseAPIClient):
         Args:
             command: The command that will be sent.
         """
-        endpoint = f"/api/client/servers/{self.server_id}/command"
-        payload = {"command": command}
         await self._request(
             HTTPMethod.POST,
-            endpoint,
-            json=payload,
+            f"/api/client/servers/{self.server_id}/command",
+            json={"command": command},
             response_format=ResponseFormat.NONE,
             valid_statuses=[204],
         )
-
-    async def get_current_state_str(self) -> str:
-        """
-        Helper method to parse and return the current state.
-
-        Returns:
-            Returns the current state as string.
-        """
-        data = await self.get_server_state()
-        if data and "attributes" in data:
-            return data["attributes"].get("current_state", "unknown")
-
-        return "unknown"
 
     async def _wait_until_state(
         self, target_state: str, timeout_seconds: int = 300
@@ -93,41 +127,36 @@ class PterodactylService(BaseAPIClient):
         iterations = timeout_seconds // 5
         for _ in range(iterations):
             await asyncio.sleep(5)
-            current_state = await self.get_current_state_str()
+            data = await self.get_server_state()
 
-            if current_state == target_state:
+            if data and data.attributes.current_state == target_state:
                 return True
 
         return False
 
-    async def send_power_action(self, action: str) -> bool:
+    async def send_power_action(
+        self, action: Literal["start", "stop", "restart", "kill"]
+    ) -> bool:
         """
         Sends a power command to the server
 
         Args:
-            action: Power action to send (e.g. "start", "stop", "restart", "kill").
+            action: Power action to send.
 
         Returns:
             `True` if operation is succesfull, otherwise `False`.
         """
-        valid_actions = ["start", "stop", "restart", "kill"]
-        if action not in valid_actions:
-            logger.error(f"Invalid power action attempted: '{action}'.")
-            return False
-
         logger.info(
             f"Sending power action '{action}' to server ID: '{self.server_id}'."
         )
-        endpoint = f"/api/client/servers/{self.server_id}/power"
-        payload = {"signal": action}
         await self._request(
             HTTPMethod.POST,
-            endpoint,
-            json=payload,
+            f"/api/client/servers/{self.server_id}/power",
+            json={"signal": action},
             response_format=ResponseFormat.NONE,
             valid_statuses=[204],
         )
 
         return await self._wait_until_state(
-            "running" if action in ["start", "restart"] else "offline"
+            "running" if action in {"start", "restart"} else "offline"
         )
