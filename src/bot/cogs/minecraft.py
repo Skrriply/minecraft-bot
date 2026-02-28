@@ -205,6 +205,7 @@ class MinecraftCog(commands.Cog):
                 color=disnake.Color.red(),
             )
             await inter.edit_original_response(embed=embed)
+            return
 
         clean_command = command.lstrip("/")
         logger.info(
