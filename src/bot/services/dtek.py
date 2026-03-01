@@ -184,8 +184,8 @@ class DTEKScraperService(BaseAPIClient):
 
             logger.info(f"Loading the page: '{url}'...")
             await page.route("**/*", self._block_static_resources)
-            await page.goto(url, wait_until="domcontentloaded")
-            await page.wait_for_selector("#discon_form", timeout=600)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_selector("#discon_form", timeout=30000)
 
             html = await page.content()
 
