@@ -87,7 +87,6 @@ class PterodactylService(BaseAPIClient):
             HTTPMethod.GET,
             f"/api/client/servers/{self.server_id}/resources",
             use_cache=True,
-            cache_ttl=10,
         )
 
         if not data:
