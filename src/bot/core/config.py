@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Discord
     DISCORD_TOKEN: str
     DISCORD_OWNER_ID: int
+    DISCORD_NOTIFICATION_CHANNEL_ID: int
 
     # Proxmox
     PROXMOX_URL: str
