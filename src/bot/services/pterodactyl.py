@@ -4,7 +4,7 @@ import asyncio
 import logging
 from enum import Enum
 from http import HTTPMethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from core.config import settings
 from pydantic import BaseModel, ValidationError
@@ -134,9 +134,7 @@ class PterodactylService(BaseAPIClient):
 
         return False
 
-    async def send_power_action(
-        self, action: Literal["start", "stop", "restart", "kill"]
-    ) -> bool:
+    async def send_power_action(self, action: PowerSignal) -> bool:
         """
         Sends a power command to the server
 

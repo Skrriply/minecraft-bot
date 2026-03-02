@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import disnake
 from disnake.ext import commands
 from services.dtek import PowerStatus
+from services.pterodactyl import PowerSignal
 
 if TYPE_CHECKING:
     from core.bot import DiscordBot
 
 logger = logging.getLogger(__name__)
 
-INVALID_STATES = {
-    "start": {
+INVALID_STATES: dict[PowerSignal, dict[str, tuple[str, str]]] = {
+    PowerSignal.START: {
         "running": ("❌ Сервер уже працює", "Можете під'єднуватися!"),
         "starting": ("❌ Сервер ще запускається", "Зачекайте кілька хвилин!"),
         "stopping": (
@@ -21,7 +22,7 @@ INVALID_STATES = {
             "Зачекайте повної зупинки сервера перед його запуском.",
         ),
     },
-    "stop": {
+    PowerSignal.STOP: {
         "offline": ("❌ Сервер уже зупинено", "Неможливо зупинити те, що не працює."),
         "stopping": ("❌ Сервер ще зупиняється", "Зачекайте кілька хвилин!"),
         "starting": (
@@ -29,7 +30,7 @@ INVALID_STATES = {
             "Зачекайте повного запуску сервер перед його зупинкою.",
         ),
     },
-    "restart": {
+    PowerSignal.RESTART: {
         "offline": (
             "❌ Сервер зупинено",
             "Використайте команду `/power start` для запуску.",
@@ -40,30 +41,30 @@ INVALID_STATES = {
         ),
         "stopping": ("❌ Сервер зупиняється", "Дочекайтеся доки він зупинеться."),
     },
-    "kill": {
+    PowerSignal.KILL: {
         "offline": (
             "❌ Сервер уже зупинено",
             "Неможливо зупинити те, що не працює.",
         ),
     },
 }
-MESSAGES = {
-    "start": {
+MESSAGES: dict[PowerSignal, dict[str, tuple[str, str]]] = {
+    PowerSignal.START: {
         "process": ("🚀 Запускаю сервер...", "Це може зайняти кілька хвилин."),
         "success": ("✅ Сервер успішно запущено!", "Можете під'єднуватися та грати!"),
     },
-    "stop": {
+    PowerSignal.STOP: {
         "process": ("🛑 Зупиняю сервер...", "Зберігаю світ і зупиняю сервер."),
         "success": ("✅ Сервер успішно зупинено!", "Усі дані збережено."),
     },
-    "restart": {
+    PowerSignal.RESTART: {
         "process": ("🔄 Перезапускаю сервер...", "Це може зайняти кілька хвилин."),
         "success": (
             "✅ Сервер успішно перезапущено!",
             "Можете під'єднуватися та грати!",
         ),
     },
-    "kill": {
+    PowerSignal.KILL: {
         "process": (
             "☠️ Примусово зупиняю сервер...",
             "Увага: можлива втрата незбережених даних!",
@@ -93,12 +94,12 @@ class MinecraftCog(commands.Cog):
         Args:
             bot: A Discord bot.
         """
-        self.bot = bot
+        self.bot: DiscordBot = bot
 
     async def _handle_power_action(
         self,
         inter: disnake.ApplicationCommandInteraction,
-        action: Literal["start", "stop", "restart", "kill"],
+        action: PowerSignal,
     ) -> None:
         logger.info(
             f"User '{inter.author}' (ID: {inter.author.id}) requested action: {action}"
@@ -156,7 +157,7 @@ class MinecraftCog(commands.Cog):
     async def start_server(self, inter: disnake.ApplicationCommandInteraction) -> None:
         """Allows any user to safely send a start signal to the server."""
         await inter.response.defer()
-        await self._handle_power_action(inter, "start")
+        await self._handle_power_action(inter, PowerSignal.START)
 
     @commands.is_owner()
     @commands.cooldown(1, 60.0, commands.BucketType.guild)
@@ -164,9 +165,7 @@ class MinecraftCog(commands.Cog):
     async def power_server(
         self,
         inter: disnake.ApplicationCommandInteraction,
-        command: Literal["start", "stop", "restart", "kill"] = commands.Param(
-            description="Команда живлення", choices=("start", "stop", "restart", "kill")
-        ),
+        command: PowerSignal = commands.Param(description="Команда живлення"),
     ) -> None:
         await inter.response.defer()
         await self._handle_power_action(inter, command)
@@ -191,7 +190,7 @@ class MinecraftCog(commands.Cog):
             description='Команда без "/" (наприклад: say Hello)'
         ),
     ) -> None:
-        await inter.response.defer(ephemeral=False)
+        await inter.response.defer()
 
         # Checks for invalid server states
         data = await self.bot.ptero_service.get_server_state()
