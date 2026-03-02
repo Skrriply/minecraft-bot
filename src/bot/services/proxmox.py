@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from http import HTTPMethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from core.config import settings
 from services.base import BaseAPIClient, ResponseFormat
@@ -11,6 +12,13 @@ if TYPE_CHECKING:
     from core.cache import CacheManager
 
 logger = logging.getLogger(__name__)
+
+
+class PowerCommand(str, Enum):
+    """Valid Proxmox power commands."""
+
+    SHUTDOWN = "shutdown"
+    REBOOT = "reboot"
 
 
 class ProxmoxService(BaseAPIClient):
@@ -38,9 +46,7 @@ class ProxmoxService(BaseAPIClient):
 
         self.node: str = settings.PROXMOX_NODE
 
-    async def send_node_power_action(
-        self, command: Literal["shutdown", "reboot"]
-    ) -> None:
+    async def send_node_power_action(self, command: PowerCommand) -> None:
         """
         Sends a command to shutdown or reboot the Proxmox host node.
 
