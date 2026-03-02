@@ -1,0 +1,42 @@
+import asyncio
+
+from core.bot import DiscordBot
+from core.cache import CacheManager
+from core.config import settings
+from core.logger import setup_logging
+from services.dtek import DTEKScraperService
+from services.proxmox import ProxmoxService
+from services.pterodactyl import PterodactylService
+
+
+async def main() -> None:
+    """Main entry point for the bot."""
+    setup_logging(settings.LOGS_DIR)
+
+    # Setups cache manager
+    cache_manager = CacheManager()
+
+    # Setups services
+    proxmox_service = ProxmoxService(cache_manager)
+    ptero_service = PterodactylService(cache_manager)
+    dtek_service = DTEKScraperService(cache_manager)
+    await proxmox_service.create_session()
+    await ptero_service.create_session()
+    await dtek_service.create_session()
+
+    # Initializes and starts the bot
+    try:
+        bot = DiscordBot(
+            settings.DISCORD_OWNER_ID, proxmox_service, ptero_service, dtek_service
+        )
+        bot.load_cogs(settings.COGS_DIR)
+        await bot.start(settings.DISCORD_TOKEN)
+    finally:
+        await proxmox_service.close_session()
+        await ptero_service.close_session()
+        await dtek_service.close_session()
+        cache_manager.clear()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
