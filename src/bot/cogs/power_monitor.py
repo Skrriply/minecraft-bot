@@ -47,8 +47,23 @@ class PowerMonitorCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self) -> None:
         """Starts the monitoring loop once the bot is ready."""
-        if not self.power_monitor_loop.is_running():
-            self.power_monitor_loop.start()
+        await self._send_startup_notification()
+        self.power_monitor_loop.start()
+
+    async def _send_startup_notification(self) -> None:
+        """
+        Sends a notification to the Discord channel indicating that the bot (and server) is online.
+        """
+        logger.info("Sending startup (power restored) notification to Discord.")
+
+        channel = self.bot.get_channel(self.channel_id)
+        if isinstance(channel, disnake.TextChannel):
+            embed = disnake.Embed(
+                title="⚡ Живлення відновлено",
+                description="Світло завантажено. Бот онлайн.",
+                color=disnake.Color.blue(),
+            )
+            await channel.send(embed=embed)
 
     def _calculate_target_datetime(self, time_str: str) -> datetime:
         """
