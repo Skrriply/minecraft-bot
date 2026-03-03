@@ -1,0 +1,24 @@
+# --- Git ---
+.git/
+.github/
+.gitignore
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# Environments
+.venv/
+.env
+
+# Logs
+src/bot/logs/
+*.log
+
+# Development tools
+.pre-commit-config.yaml
+.ruff_cache/
+
+# Pterodactyl Egg
+egg-minecraft-bot.json
