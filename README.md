@@ -66,7 +66,7 @@ python -m uv run ./src/bot/main.py
 | /start        | 🚀 Sends a start signal to the Minecraft server.                  | Everyone (with cooldown) |
 | /status       | 📊 Displays current Minecraft server resources and DTEK schedule. | Everyone                 |
 | /power        | 🔌 Sends a power action (start, stop, restart, kill).             | Bot owner only           |
-| /power        | 🛠️ Sends a command directly to the Minecraft console.             | Bot owner only           |
+| /cmd          | 🛠️ Sends a command directly to the Minecraft console.             | Bot owner only           |
 
 ## ⚖️ License
 
