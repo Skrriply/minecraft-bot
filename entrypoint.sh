@@ -20,6 +20,7 @@ uv run camoufox fetch
 # 4. Configuration check
 if [ ! -f ".env" ]; then
     echo "[Warning] A .env file was not found in the root directory!"
+    exit 1
 fi
 
 # 5. Pterodactyl command processing
