@@ -1,0 +1,62 @@
+{
+  "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-03-03T06:43:05+00:00",
+  "name": "Minecraft bot",
+  "author": "email@localhost",
+  "description": "A Discord bot that manages your self-hosted Minecraft server infrastructure.\r\n\r\nhttps:\/\/github.com\/Skrriply\/minecraft-bot",
+  "features": [],
+  "docker_images": {
+    "Standard": "ghcr.io\/skrriply\/minecraft-bot:latest"
+  },
+  "file_denylist": [],
+  "startup": "uv run {{PY_FILE}}",
+  "config": {
+    "files": "{}",
+    "startup": "{}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!\/bin\/ash\r\n\r\necho \"Starting server initialization...\"\r\n\r\necho \"Updating packages and installing git...\"\r\napk update\r\napk add --no-cache git\r\n\r\nmkdir -p \/mnt\/server\r\ncd \/mnt\/server || exit 1\r\n\r\nif [ \"$(ls -A \/mnt\/server)\" ]; then\r\n    echo \"Directory is not empty. Skipping initial git clone.\"\r\nelse\r\n    echo \"Cloning repository...\"\r\n    git clone ${GIT_ADDRESS} .\r\nfi\r\n\r\necho \"Installation completed successfully!\"",
+      "container": "alpine:latest",
+      "entrypoint": "ash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Git Repository URL",
+      "description": "Git repository to clone",
+      "env_variable": "GIT_ADDRESS",
+      "default_value": "https:\/\/github.com\/Skrriply\/minecraft-bot",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Python File",
+      "description": "The file that starts the bot",
+      "env_variable": "PY_FILE",
+      "default_value": "\/home\/container\/src\/bot\/main.py",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Auto Update",
+      "description": "Pull the latest files on startup",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    }
+  ]
+}
