@@ -1,6 +1,6 @@
 # ⛏️ Minecraft Discord Bot
 
-A Discord bot built with [Python](https://www.python.org/) and [disnake](https://disnake.dev/) that helps you to protect your self-hosted Minecraft server from data corruption caused by sudden power losses and adds several useful features.
+A Discord bot built with [Python](https://www.python.org/) and [disnake](https://disnake.dev/) for my friends and me. It helps protect your self-hosted Minecraft server from data corruption during sudden power outages and provides several other useful features.
 
 ## ✨ Features
 
@@ -13,6 +13,7 @@ A Discord bot built with [Python](https://www.python.org/) and [disnake](https:/
 
 1. Proxmox VE host with API access enabled.
    - Ensure your server's motherboard BIOS has **"Restore on AC Power Loss"** (or similar) set to **"Power On"** so the host boots automatically when power restores.
+   - It is recommended to create a dedicated, unprivileged user for the bot, granting it only the permission to shut down the server (`Sys.PowerMgmt`).
 2. Pterodactyl Panel with a generated Client API key.
 3. Discord bot application with the necessary intents.
 
