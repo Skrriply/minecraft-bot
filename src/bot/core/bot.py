@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from services.dtek import DTEKScraperService
+    from services.minecraft import MinecraftService
     from services.proxmox import ProxmoxService
     from services.pterodactyl import PterodactylService
 
@@ -24,6 +25,7 @@ class DiscordBot(commands.InteractionBot):
         owner_id: int,
         proxmox_service: ProxmoxService,
         ptero_service: PterodactylService,
+        minecraft_service: MinecraftService,
         dtek_service: DTEKScraperService,
     ) -> None:
         """
@@ -37,6 +39,7 @@ class DiscordBot(commands.InteractionBot):
         )
         self.proxmox_service: ProxmoxService = proxmox_service
         self.ptero_service: PterodactylService = ptero_service
+        self.minecraft_service: MinecraftService = minecraft_service
         self.dtek_service: DTEKScraperService = dtek_service
 
     async def on_ready(self) -> None:

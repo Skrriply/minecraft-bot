@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Package manager
+ENV UV_NO_DEV=1
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # User configuration & permissions

@@ -7,7 +7,7 @@ echo "[Setup] Initializing environment..."
 mkdir -p "${TMPDIR}"
 
 # 2. Code update via Git
-if [ -d ".git" ]; then
+if [ -d ".git" ] && [[ "{{AUTO_UPDATE}}" == "1" ]]; then
     echo "[Setup] Pulling updates from the Git repository..."
     git pull || echo "[Warning] Failed to update the repository. Continuing startup..."
 fi
@@ -20,6 +20,7 @@ uv run camoufox fetch
 # 4. Configuration check
 if [ ! -f ".env" ]; then
     echo "[Warning] A .env file was not found in the root directory!"
+    exit 1
 fi
 
 # 5. Pterodactyl command processing

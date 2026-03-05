@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import disnake
-from disnake.ext import commands
+from core.config import settings
+from disnake.ext import commands, tasks
 from services.dtek import PowerStatus
 from services.pterodactyl import PowerSignal
 
 if TYPE_CHECKING:
+    from zoneinfo import ZoneInfo
+
     from core.bot import DiscordBot
 
 logger = logging.getLogger(__name__)
@@ -86,6 +90,7 @@ class MinecraftCog(commands.Cog):
         PowerStatus.MAYBE: "🟡 Можливі відключення",
         None: "⚪ Невідомо",
     }
+    STOP_THRESHOLD_MINUTES: int = 5
 
     def __init__(self, bot: DiscordBot) -> None:
         """
@@ -95,6 +100,50 @@ class MinecraftCog(commands.Cog):
             bot: A Discord bot.
         """
         self.bot: DiscordBot = bot
+        self.timezone: ZoneInfo = settings.TIMEZONE
+        self.empty_since: datetime | None = None
+
+    @commands.Cog.listener()
+    async def on_ready(self) -> None:
+        """Starts the monitoring loop once the bot is ready."""
+        self.auto_stop_task.start()
+
+    @tasks.loop(minutes=1)
+    async def auto_stop_task(self) -> None:
+        """Automatically stops the server to save resources."""
+        state = await self.bot.ptero_service.get_server_state()
+        if not state or state.attributes.current_state != "running":
+            self.empty_since = None
+            return
+
+        mc_status = await self.bot.minecraft_service.fetch_status()
+
+        if not mc_status:
+            return
+
+        players_online, max_players = mc_status
+        now = datetime.now(self.timezone)
+
+        if players_online == 0:
+            if not self.empty_since:
+                self.empty_since = now
+                logger.info(
+                    f"The server is empty. Countdown to automatic stop in {self.STOP_THRESHOLD_MINUTES} minutes."
+                )
+            else:
+                elapsed = (now - self.empty_since).total_seconds() / 60.0
+                if elapsed >= self.STOP_THRESHOLD_MINUTES:
+                    logger.info(
+                        f"The server has been empty for more than {self.STOP_THRESHOLD_MINUTES} minutes. Stopping..."
+                    )
+                    await self.bot.ptero_service.send_power_action(PowerSignal.STOP)
+                    self.empty_since = None
+        else:
+            if self.empty_since is not None:
+                logger.info(
+                    f"The player has joined the server ({players_online}/{max_players}). Auto-stopping canceled."
+                )
+            self.empty_since = None
 
     async def _handle_power_action(
         self,
@@ -245,6 +294,7 @@ class MinecraftCog(commands.Cog):
             return
 
         state = server_data.attributes.current_state
+        players_text = "Невідомо"
         cpu_usage = server_data.attributes.resources.cpu_absolute
         ram_mb = server_data.attributes.resources.memory_bytes / (1024 * 1024)
         disk_mb = server_data.attributes.resources.disk_bytes / (1024 * 1024)
@@ -254,6 +304,11 @@ class MinecraftCog(commands.Cog):
         color = disnake.Color.red()
         if state == "running":
             color = disnake.Color.green()
+
+            mc_status = await self.bot.minecraft_service.fetch_status()
+            if mc_status:
+                players_online, max_players = mc_status
+                players_text = f"{players_online}/{max_players}"
         elif state == "starting":
             color = disnake.Color.yellow()
 
@@ -270,7 +325,9 @@ class MinecraftCog(commands.Cog):
             schedule_text = "✅ Відключень не планується (або немає даних)"
 
         embed = disnake.Embed(title="📊 Статус сервера", color=color)
-        embed.add_field(name="⛏️ Статус", value=f"**{state.upper()}**", inline=False)
+        embed.add_field(name="⛏️ Статус", value=f"**{state.upper()}**", inline=True)
+        embed.add_field(name="👥 Гравці", value=f"**{players_text}**", inline=True)
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
         embed.add_field(name="💻 ЦПУ", value=f"{cpu_usage:.2f}%", inline=True)
         embed.add_field(name="🧠 ОЗУ", value=f"{ram_mb:.2f} MB", inline=True)
         embed.add_field(name="💽 Диск", value=f"{disk_mb:.2f} MB", inline=True)

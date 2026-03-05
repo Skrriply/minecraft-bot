@@ -77,24 +77,12 @@ class PowerMonitorCog(commands.Cog):
         """
         now = datetime.now(self.timezone)
         target_time = datetime.strptime(time_str, "%H:%M").time()
-        return datetime.combine(now.date(), target_time, tzinfo=self.timezone)
+        target_dt = datetime.combine(now.date(), target_time, tzinfo=self.timezone)
 
-    @staticmethod
-    def _is_within_window(
-        target_minutes: float, actual_minutes: float, tolerance: float
-    ) -> bool:
-        """
-        Evaluates whether a given time delta falls within an acceptable execution window.
+        if target_dt < now - timedelta(hours=1):
+            target_dt += timedelta(days=1)
 
-        Args:
-            target_minutes: The ideal threshold minute mark (e.g., 15 for a 15-minute warning).
-            actual_minutes: The current calculated time remaining in minutes.
-            tolerance: The allowable deviation in minutes to account for loop delays.
-
-        Returns:
-            `True` if the actual time falls within the calculated tolerance window, `False` otherwise.
-        """
-        return abs(target_minutes - actual_minutes) <= tolerance
+        return target_dt
 
     @tasks.loop(minutes=1)
     async def power_monitor_loop(self) -> None:
@@ -109,13 +97,14 @@ class PowerMonitorCog(commands.Cog):
         now = datetime.now(self.timezone)
         delta_minutes = (outage_dt - now).total_seconds() / 60.0
 
+        if delta_minutes <= 0:
+            return
+
         # 1. Send Warning
         if (
-            self._is_within_window(
-                self.WARNING_THRESHOLD_MINUTES,
-                delta_minutes,
-                self.LOOP_TOLERANCE_MINUTES,
-            )
+            self.SHUTDOWN_THRESHOLD_MINUTES
+            < delta_minutes
+            <= (self.WARNING_THRESHOLD_MINUTES + self.LOOP_TOLERANCE_MINUTES)
             and outage_dt not in self.notified_outages
         ):
             await self._send_warnings()
@@ -123,11 +112,9 @@ class PowerMonitorCog(commands.Cog):
 
         # 2. Execute Shutdown
         if (
-            self._is_within_window(
-                self.SHUTDOWN_THRESHOLD_MINUTES,
-                delta_minutes,
-                self.LOOP_TOLERANCE_MINUTES,
-            )
+            0
+            < delta_minutes
+            <= (self.SHUTDOWN_THRESHOLD_MINUTES + self.LOOP_TOLERANCE_MINUTES)
             and outage_dt not in self.shutdown_outages
         ):
             await self._execute_shutdown(schedule.next_power_on_time)

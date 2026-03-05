@@ -5,6 +5,7 @@ from core.cache import CacheManager
 from core.config import settings
 from core.logger import setup_logging
 from services.dtek import DTEKScraperService
+from services.minecraft import MinecraftService
 from services.proxmox import ProxmoxService
 from services.pterodactyl import PterodactylService
 
@@ -19,6 +20,7 @@ async def main() -> None:
     # Setups services
     proxmox_service = ProxmoxService(cache_manager)
     ptero_service = PterodactylService(cache_manager)
+    minecraft_service = MinecraftService()
     dtek_service = DTEKScraperService(cache_manager)
     await proxmox_service.create_session()
     await ptero_service.create_session()
@@ -27,7 +29,11 @@ async def main() -> None:
     # Initializes and starts the bot
     try:
         bot = DiscordBot(
-            settings.DISCORD_OWNER_ID, proxmox_service, ptero_service, dtek_service
+            settings.DISCORD_OWNER_ID,
+            proxmox_service,
+            ptero_service,
+            minecraft_service,
+            dtek_service,
         )
         bot.load_cogs(settings.COGS_DIR)
         await bot.start(settings.DISCORD_TOKEN)
