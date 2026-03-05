@@ -7,7 +7,7 @@ echo "[Setup] Initializing environment..."
 mkdir -p "${TMPDIR}"
 
 # 2. Code update via Git
-if [ -d ".git" ]; then
+if [ -d ".git" ] && [[ "{{AUTO_UPDATE}}" == "1" ]]; then
     echo "[Setup] Pulling updates from the Git repository..."
     git pull || echo "[Warning] Failed to update the repository. Continuing startup..."
 fi
