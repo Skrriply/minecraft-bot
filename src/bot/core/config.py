@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     PTERODACTYL_API_KEY: str
     PTERODACTYL_SERVER_ID: str
 
+    # Minecraft
+    MINECRAFT_HOST: str
+    MINECRAFT_PORT: int
+    MINECRAFT_EDITION: str = "java"
+
     # DTEK
     TIMEZONE: ZoneInfo
     DTEK_REGION: str = "kem"
